@@ -89,7 +89,7 @@ def getYaraTargetFromGhidra():
     count = fBytes.getOriginalBytes(k,buf,0,CHUNK_SIZE)
     if count == 0:
       break
-    buf2 = buf[0:count]
+    buf2 = buf[:count]
     FileUtils.writeByteArrayToFile(yaraTargetPath, buf2, True)
   return yaraTargetPath.getPath()
   
@@ -98,7 +98,7 @@ def getYaraTargetFromGhidra():
 #where each file offset represents a match for that rule
 def createYaraDictionary(stdout):
   lines = stdout.splitlines()
-  if lines == None:
+  if lines is None:
     println('No YARA matches detected.')
     sys.exit(1)
   yaraDictionary = {}
@@ -122,12 +122,12 @@ def launchYaraProcess(yaraRulePath, yaraTargetPath):
   else:
     yaraExecutablePath = distutils.spawn.find_executable("yara")
   #if we cannot find YARA, then ask the user where YARA is located
-  if(yaraExecutablePath is None):
+  if (yaraExecutablePath is None):
     yaraExecutablePath = askFile(getScriptName() + \
                         ': Select the YARA executable file',\
                         'Select YARA executable').getPath()
-    if yaraExecutablePath is None:
-      sys.exit(1)
+  if yaraExecutablePath is None:
+    sys.exit(1)
   try:
     yaraProcess = Popen([yaraExecutablePath,yaraRulePath,'-sw',yaraTargetPath],stdout=PIPE,stderr=PIPE,bufsize=-1)
     stdout,stderr = yaraProcess.communicate()
@@ -136,7 +136,7 @@ def launchYaraProcess(yaraRulePath, yaraTargetPath):
     sys.exit(1)
   if yaraProcess.returncode != 0:
     println('The YARA process failed with return code of %d.  Is there a mistake in your rule file?' % yaraProcess.returncode)
-    println('The YARA process error: %s.' % str(stderr))
+    println(f'The YARA process error: {str(stderr)}.')
     sys.exit(1)
   yaraDictionary = createYaraDictionary(stdout)
   yaraProcess.stdout.close()
@@ -147,23 +147,9 @@ def launchYaraProcess(yaraRulePath, yaraTargetPath):
 #so users can easily filter through comments in the Ghidra Comments window
 def setGhidraComment(memoryAddress,fileOffset,yaraRuleName):
   myCodeUnit = currentProgram.getListing().getCodeUnitContaining(memoryAddress)
-  existingComment = myCodeUnit.getComment(0)
-  #A pre-existing comment does  not exist so add this YARA signature to the comment and we are done
-  if not existingComment:
-    # 0 for end-of-line comment
-    myCodeUnit.setComment(0, 'YARA: \n'+yaraRuleName)
-    return
-  #A comment already exists at this code unit so append our new comment to that comment
-  #Assume that we have already run this script on this file and
-  #the comments that already exist are separated by \n
-  else:
-    #store the pre-existing comments in commentList
-    commentList = []
+  if existingComment := myCodeUnit.getComment(0):
     comments = existingComment.split('\n')
-    for comment in comments:
-      #remove 'YARA' from the \n-separated comments
-      if 'YARA' not in comment:
-        commentList.append(comment)
+    commentList = [comment for comment in comments if 'YARA' not in comment]
     newComment = ''
     #if this YARA rule name is not already reported for this CodeUnit, then add it to commentList
     if yaraRuleName not in commentList:
@@ -178,17 +164,22 @@ def setGhidraComment(memoryAddress,fileOffset,yaraRuleName):
         #append to the last comment in the list
         newComment = newComment+commentList[-1]
       myCodeUnit.setComment(0,'YARA: \n'+newComment)
-    #the comment already contains the YARA rule name so do nothing
     else:
-      println('INFO: This YARA rule is already reported for this CodeUnit. '
-              'Rule name: %s. Memory address: %s. File offset: %s.' %
-              (yaraRuleName,memoryAddress.toString(), hex(fileOffset)))
+      println(
+          f'INFO: This YARA rule is already reported for this CodeUnit. Rule name: {yaraRuleName}. Memory address: {memoryAddress.toString()}. File offset: {hex(fileOffset)}.'
+      )
       return
 
+  else:
+    # 0 for end-of-line comment
+    myCodeUnit.setComment(0, 'YARA: \n'+yaraRuleName)
+    return
+
 def main():
-  choiceList = []
-  choiceList.append('Binary exists on disk.')
-  choiceList.append('Ghidra will create a new instance of the imported bytes and save them to a file.')
+  choiceList = [
+      'Binary exists on disk.',
+      'Ghidra will create a new instance of the imported bytes and save them to a file.',
+  ]
   choice = askChoice('Select the file that YARA will scan.', 'Please choose one', choiceList, choiceList[0])
 
   #the program probably still exists at the same location as when the file was imported into Ghidra
@@ -208,21 +199,27 @@ def main():
         myFileOffset = long(fileOffset,16)
         addressList = mem.locateAddressesForFileOffset(myFileOffset)
         if addressList.isEmpty():
-          println('No memory address found for: ' + hex(myFileOffset))
+          println(f'No memory address found for: {hex(myFileOffset)}')
         elif addressList.size() == 1:
           address = addressList.get(0)
           setGhidraComment(address,myFileOffset,key)
-        #file offset matches to multiple addresses.  Let the user decide which address they want.
         else:
-          println('WARN: The file offset ' + hex(myFileOffset) + ' matches to the following memory addresses:')
+          println(
+              f'WARN: The file offset {hex(myFileOffset)} matches to the following memory addresses:'
+          )
           addressChoiceList = []
           for addr in addressList:
             println('\t ' + mem.getBlock(addr).getName() + ':' + addr.toString())
-            addressChoiceList.append(mem.getBlock(addr).getName() + ':' + addr.toString())
-          addressChoice = askChoice('Select the memory address that corresponds to the file offset: ' + hex(myFileOffset), 'Please choose one', addressChoiceList, addressChoiceList[0])
+            addressChoiceList.append(f'{mem.getBlock(addr).getName()}:{addr.toString()}')
+          addressChoice = askChoice(
+              f'Select the memory address that corresponds to the file offset: {hex(myFileOffset)}',
+              'Please choose one',
+              addressChoiceList,
+              addressChoiceList[0],
+          )
           selectedAddress = addressChoice.split(':')
           addrSelected = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(selectedAddress[-1])
-          setGhidraComment(addrSelected,myFileOffset,key)  
+          setGhidraComment(addrSelected,myFileOffset,key)
   else:
     println('No YARA matches.')
               

@@ -104,7 +104,8 @@ static void %(name)s()
         for (e, f) in self.info:
             if f: self.c_write(f)
             self.c_write('\t{ %s_NAME, (testFuncPtr) &%s, %s_NUMB },' % (e, e, e))
-            if f: self.c_write('#endif /* %s */' % f)
+            if f:
+                self.c_write(f'#endif /* {f} */')
 
         self.c_write('\t{ 0, 0, 0 }')
         self.c_write('};')

@@ -80,7 +80,7 @@ elif args.pcodetest_all:
         if pct.config.build_all:
             try: PCodeTestBuild.factory(pct).main()
             except Exception as e:
-                print('unhandled exception while building %s' % n)
+                print(f'unhandled exception while building {n}')
                 traceback.print_exc(file=sys.stdout)
                 os.chdir(cwd)
 elif args.pcodetest:
@@ -88,7 +88,7 @@ elif args.pcodetest:
         PCodeTest = PCodeTest.list[args.pcodetest]
         PCodeTestBuild.factory(PCodeTest).main()
     else:
-        print('the pcode test %s is not in the list' % args.pcodetest)
+        print(f'the pcode test {args.pcodetest} is not in the list')
 else:
     parser.print_help()
 

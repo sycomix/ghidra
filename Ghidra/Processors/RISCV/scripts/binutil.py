@@ -1161,11 +1161,7 @@ class OpCode:
             return False
         if self.operands != other.operands:
             return False
-        if self.pinfo != other.pinfo:
-            return False
-        if self.xlen != other.xlen:
-            return False
-        return True
+        return False if self.pinfo != other.pinfo else self.xlen == other.xlen
 
 # name,     xlen, isa,   operands, match, mask, match_func, pinfo
 opcodes = [
@@ -1789,12 +1785,11 @@ def parse_operand(op):
                 cons.append("cjimm")
             elif dis[x] == 'c':
                 out += "sp"
-                cons.append("cop0711=2")
-                cons.append("sp")
+                cons.extend(("cop0711=2", "sp"))
             elif dis[x] == 'i':
                 out += "csimm3"
                 cons.append("csimm3")
-            elif dis[x] == 'o' or dis[x] == 'j':
+            elif dis[x] in ['o', 'j']:
                 out += "cimmI"
                 cons.append("cimmI")
             elif dis[x] == 'k':
@@ -1824,13 +1819,12 @@ def parse_operand(op):
             elif dis[x] == 'x':
                 out += "cr0204s"
                 cons.append("cr0204s")
-            elif dis[x] == 'u' or dis[x] == 'v':
+            elif dis[x] in ['u', 'v']:
                 out += "cbigimm"
                 cons.append("cbigimm")
             elif dis[x] == 'z':
                 out += "zero"
-                cons.append("cop0206=0")
-                cons.append("zero")
+                cons.extend(("cop0206=0", "zero"))
             elif dis[x] == 'U':
                 out += "cr0711"
                 cons.append("cr0711")
@@ -1870,7 +1864,7 @@ def parse_operand(op):
         elif dis[x] == '0':
             if x+1 == len(dis):
                 out += "0"
-        elif dis[x] == 'b' or dis[x] == 's':
+        elif dis[x] in ['b', 's']:
             if is16:
                 out += "cr1519"
                 cons.append("cr1519")
@@ -1927,7 +1921,7 @@ def parse_operand(op):
         elif dis[x] == '<':
             out += "shamt5"
             cons.append("shamt5")
-        elif dis[x] == 'S' or dis[x] == 'U':
+        elif dis[x] in ['S', 'U']:
             if is16:
                 out += "cfr1519"
                 cons.append("cfr1519")
@@ -2022,7 +2016,7 @@ def parse_CI(op, rv):
         elif x == 1 and rv == 128:
             op.display = op.display.replace("clwspimm", "clwspimm5496")
             op.bitpattern.append("clwspimm5496")
-        elif (x == 1 and (rv == 32 or rv == 64)) or (x == 3 and (rv == 64 or rv == 128)):
+        elif x == 1 and rv in [32, 64] or x == 3 and rv in [64, 128]:
             op.display = op.display.replace("clwspimm", "clwspimm54386")
             op.bitpattern.append("clwspimm54386")
     if op.bitpattern.count("cldspimm") == 1:
@@ -2033,7 +2027,7 @@ def parse_CI(op, rv):
         elif x == 1 and rv == 128:
             op.display = op.display.replace("cldspimm", "cldspimm5496")
             op.bitpattern.append("cldspimm5496")
-        elif (x == 1 and (rv == 32 or rv == 64)) or (x == 3 and (rv == 64 or rv == 128)):
+        elif x == 1 and rv in [32, 64] or x == 3 and rv in [64, 128]:
             op.display = op.display.replace("cldspimm", "cldspimm54386")
             op.bitpattern.append("cldspimm54386")
     return
@@ -2042,7 +2036,7 @@ def parse_CSS(op, rv):
     x = (op.match >> 13) & 7
     if op.bitpattern.count("cswspimm") == 1:
         op.bitpattern.remove("cswspimm")
-        if (x == 5 and (rv == 32 or rv == 64)) or (x == 7 and (rv == 128 or rv == 64)):
+        if x == 5 and rv in [32, 64] or x == 7 and rv in [128, 64]:
             op.display = op.display.replace("cswspimm", "cswspimm5386")
             op.bitpattern.append("cswspimm5386")
         elif (x == 5 and rv == 128):
@@ -2053,7 +2047,7 @@ def parse_CSS(op, rv):
             op.bitpattern.append("cswspimm5276")
     if op.bitpattern.count("csdspimm") == 1:
         op.bitpattern.remove("csdspimm")
-        if (x == 5 and (rv == 32 or rv == 64)) or (x == 7 and (rv == 128 or rv == 64)):
+        if x == 5 and rv in [32, 64] or x == 7 and rv in [128, 64]:
             op.display = op.display.replace("csdspimm", "csdspimm5386")
             op.bitpattern.append("csdspimm5386")
         elif (x == 5 and rv == 128):

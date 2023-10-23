@@ -39,26 +39,30 @@ def getFileOffset():
   return myFileOffset
 
 def processAddress(addr, memBlockName, fileOffset):
-  println('File offset ' + hex(fileOffset) + ' is associated with memory block:address ' + memBlockName + ':' + addr.toString());
+  println(
+      f'File offset {hex(fileOffset)} is associated with memory block:address {memBlockName}:{addr.toString()}'
+  );
   myCodeUnit = currentProgram.getListing().getCodeUnitContaining(addr)
-  comment = myCodeUnit.getComment(0)
-  if not comment:
-    myCodeUnit.setComment(0, getScriptName() + ': File offset: ' + hex(fileOffset) + 
-      ', Memory block:address ' + memBlockName + ':'+ addr.toString())
+  if comment := myCodeUnit.getComment(0):
+    myCodeUnit.setComment(
+        0,
+        f'{comment} {getScriptName()}: File offset: {hex(fileOffset)}, Memory block:address {memBlockName}:{addr.toString()}',
+    )
   else:
-    myCodeUnit.setComment(0, comment + ' ' + getScriptName() + ': File offset: ' + hex(fileOffset) + 
-      ', Memory block:address ' + memBlockName + ':' + addr.toString())
+    myCodeUnit.setComment(
+        0,
+        f'{getScriptName()}: File offset: {hex(fileOffset)}, Memory block:address {memBlockName}:{addr.toString()}',
+    )
 
 myFileOffset = getFileOffset()
 mem = currentProgram.getMemory()
 addressList = mem.locateAddressesForFileOffset(myFileOffset)
 if addressList.isEmpty():
-  println('No memory address found for: ' + hex(myFileOffset))
+  println(f'No memory address found for: {hex(myFileOffset)}')
 elif addressList.size() == 1:
   address = addressList.get(0)
   processAddress(address, mem.getBlock(address).getName(), myFileOffset)
-#file offset matches to multiple addresses.  Let the user decide which address they want.
 else:
   println('Possible memory block:address are:')
   for addr in addressList:
-    println(mem.getBlock(addr).getName() + ":" + addr.toString())
+    println(f"{mem.getBlock(addr).getName()}:{addr.toString()}")

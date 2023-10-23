@@ -55,10 +55,7 @@ class FunctionNode(ReferenceNode):
         self.fn = getFunctionContaining(toAddr)
         self.references = []
     def hasString(self):
-        for r in self.references:
-            if isinstance(r, StringNode) or r.hasString():
-                return True
-        return False
+        return any(isinstance(r, StringNode) or r.hasString() for r in self.references)
     def indentedString(self, depth=0):
         string = "%s()\n" % (self.fn.getName())
         for r in self.references:
@@ -77,10 +74,7 @@ class FunctionNode(ReferenceNode):
             else:
                 self.references.append(r)
     def getName(self):
-        if self.fn is not None:
-            return self.fn.getName()
-        else:
-            return "fun_%s" % (self.toAddr)
+        return self.fn.getName() if self.fn is not None else f"fun_{self.toAddr}"
     def process(self, processed=[]):
         if self.fn is None:
             return processed
@@ -135,9 +129,11 @@ def getFunctionReferences(insn):
     lst = []
     for i in range(numOperands):
         opRefs = insn.getOperandReferences(i)
-        for o in opRefs:
-            if o.getReferenceType().isCall():
-                lst.append( FunctionNode(insn.getMinAddress(), o.getToAddress()) )
+        lst.extend(
+            FunctionNode(insn.getMinAddress(), o.getToAddress())
+            for o in opRefs
+            if o.getReferenceType().isCall()
+        )
     return lst
 
 def getReferences(insn):

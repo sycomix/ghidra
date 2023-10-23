@@ -41,23 +41,16 @@ def getAutoCompleteList(command='', locals=None, includeMagic=1,
     #root = getRoot(command, terminator='.')
     # and get the part of the completion we should filter on
     (root, filter) = getRootAndFilter(command, terminator='.')
-    if root:
-        jump_past_period = 1
-    else:
-        jump_past_period = 0
-
+    jump_past_period = 1 if root else 0
     #println("root='" + root + "'")
     #println("filter='" + filter + "'")
-    
+
     if not root:
         # top-level?
         attributes = locals
     else:
         try:
-            if locals is not None:
-                object = eval(root, locals)
-            else:
-                object = eval(root)
+            object = eval(root, locals) if locals is not None else eval(root)
         except:
             #print "could not eval(", root, "):", sys.exc_info()[0]
             pass
@@ -68,10 +61,7 @@ def getAutoCompleteList(command='', locals=None, includeMagic=1,
     for attribute in attributes:
         if attribute.lower().startswith(filter.lower()):
             try:
-                if object is not None:
-                    pyObj = getattr(object, attribute)
-                else:
-                    pyObj = locals[attribute]
+                pyObj = getattr(object, attribute) if object is not None else locals[attribute]
                 completion_list.append(PythonCodeCompletionFactory.
                                        newCodeCompletion(attribute,
                                                          attribute, 
@@ -92,7 +82,6 @@ def getAttributeNames(object, includeMagic=1, includeSingle=1,
                       includeDouble=1):
     """Return list of unique attributes, including inherited, for object."""
     attributes = []
-    dict = {}
     if not hasattrAlwaysReturnsTrue(object):
         # Add some attributes that don't always get picked up.  If
         # they don't apply, they'll get filtered out at the end
@@ -106,9 +95,7 @@ def getAttributeNames(object, includeMagic=1, includeSingle=1,
     attrdict = getAllAttributeNames(object)
     for attrlist in attrdict.values():
         attributes += attrlist
-    # Remove duplicates from the attribute list.
-    for item in attributes:
-        dict[item] = None
+    dict = {item: None for item in attributes}
     attributes = dict.keys()
     attributes.sort(lambda x, y: cmp(x.upper(), y.upper()))
     if not includeSingle:
@@ -199,12 +186,10 @@ def getAllAttributeNames(object):
             # needed for Jython 2.2?
             halt_type = type(types.TypeType)
             for base in bases:
-                if type(base) is types.TypeType \
-                    or type(base) is halt_type:
-                    # Break a circular reference.  Happens in Python 2.2.
-                    #print "breaking TypeType circular reference"
-                    pass
-                else:
+                if (
+                    type(base) is not types.TypeType
+                    and type(base) is not halt_type
+                ):
                     # print "calling update (better not be 'type') with", base
                     attrdict.update(getAllAttributeNames(base))
     return attrdict
@@ -217,10 +202,7 @@ def getCallTip(command='', locals=None):
     # Get the proper chunk of code from the command.
     root = getRoot(command, terminator='(')
     try:
-        if locals is not None:
-            object = eval(root, locals)
-        else:
-            object = eval(root)
+        object = eval(root, locals) if locals is not None else eval(root)
     except:
         #print "could not eval(", root, "):", sys.exc_info()[0]
         return calltip
@@ -243,10 +225,7 @@ def getCallTip(command='', locals=None):
             # instance, usually coded as "self", and is usually passed
             # automatically by Python; therefore we want to drop it.
             temp = argspec.split(',')
-            if len(temp) == 1:  # No other arguments.
-                argspec = '()'
-            else:  # Drop the first argument.
-                argspec = '(' + ','.join(temp[1:]).lstrip()
+            argspec = '()' if len(temp) == 1 else '(' + ','.join(temp[1:]).lstrip()
         tip1 = name + argspec
     doc = ''
     if callable(object):
@@ -271,8 +250,7 @@ def getCallTip(command='', locals=None):
         tip = '%s%s\n\n%s' % (tip1, tip2, tip3)
     else:
         tip = tip1
-    calltip = (name, argspec[1:-1], tip.strip())
-    return calltip
+    return name, argspec[1:-1], tip.strip()
 
 def getRoot(command, terminator=None):
     """Return the rightmost root portion of an arbitrary Python command.
@@ -388,60 +366,53 @@ def getRootAndFilter(command, terminator=None):
         tokenstring = token[1]
         line = token[4]
         if tokentype is tokenize.ENDMARKER:
-            
+
             #println("Hit end marker; continuing")
-            
+
             continue
         if not terminator_seen:
             if not filter and tokentype in (tokenize.NAME, tokenize.STRING):
                 # okay, we think we've found our filter string
                 filter = tokenstring
-                
+
                 #println("hit filter string '" + filter + "'")
-                
+
             elif tokenstring == terminator:
                 # hooray, our terminator!
                 terminator_seen = True
             else:
                 # either we found another token before our already-set
                 # filter string, or we just found a bad token
-                
+
                 #println("No valid tokens found after terminator (at '" +
                 #        tokenstring + "'")
-                
+
                 break
-        else:
-            # we've seen the terminator -- continue adding valid tokens
-            # until we hit a token that stops us
-            if tokentype in (tokenize.NAME, tokenize.STRING, tokenize.NUMBER):
-                root = tokenstring + root
-                
-                #println("Added to root: '" + root + "'")
-            
-            elif tokentype is tokenize.OP:
-                if tokenstring in op_mate.keys():
-                    # found a closing bracket/paren
-                    op_stack.append(tokenstring)
-                elif tokenstring in op_mate.values():
-                    if len(op_stack) < 1 or \
-                        tokenstring != op_mate[op_stack.pop()]:
-                        # uh-oh, non-matching brackets/parens!
-                        break
-                elif len(op_stack) > 0:
-                    # weird tokens are okay inside brackets/parens
-                    pass
-                elif tokenstring == '.':
-                    # dots are okay too!
-                    pass
-                else:
+        elif tokentype in (tokenize.NAME, tokenize.STRING, tokenize.NUMBER):
+            root = tokenstring + root
+
+            #println("Added to root: '" + root + "'")
+
+        elif tokentype is tokenize.OP:
+            if tokenstring in op_mate:
+                # found a closing bracket/paren
+                op_stack.append(tokenstring)
+            elif tokenstring in op_mate.values():
+                if not op_stack or tokenstring != op_mate[op_stack.pop()]:
+                    # uh-oh, non-matching brackets/parens!
                     break
-                
-                root = tokenstring + root
-                
-                #println("Added to root: '" + root + "'")
-            else:
-                # hit a terminating token
+            elif len(op_stack) > 0:
+                # weird tokens are okay inside brackets/parens
+                pass
+            elif tokenstring != '.':
                 break
+
+            root = tokenstring + root
+                        
+                        #println("Added to root: '" + root + "'")
+        else:
+            # hit a terminating token
+            break
     return (root, filter)
 
 def getTokens(command):
@@ -483,13 +454,7 @@ def getBaseObject(object):
         # inspect.getargspec() complains that the object isn't a
         # Python funciton.
         try:
-            if object.im_self is None:
-                # This is an unbound method so we do not drop self
-                # from the argpec, sinc ean instance must be passed
-                # as the first arg.
-                dropSelf = 0
-            else:
-                dropSelf = 1
+            dropSelf = 0 if object.im_self is None else 1
             object = object.im_func
         except AttributeError:
             dropSelf = 0

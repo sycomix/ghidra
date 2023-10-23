@@ -84,8 +84,12 @@ def is_ida_version_supported():
     if not supported:
         idc.msg('\nThe IDA XML plugins and loader are not supported ' +
                 'by this version of IDA.\n')
-        idc.msg('Please use IDA ' + BASELINE_STR + ' or greater ' +
-                'with this version of XML.\n')
+        idc.msg(
+            (
+                f'Please use IDA {BASELINE_STR} or greater '
+                + 'with this version of XML.\n'
+            )
+        )
     return supported
 
 
@@ -103,7 +107,7 @@ class MultipleAddressSpacesNotSupported(Exception):
 
 class IdaXml:
     def __init__(self, arg):
-        self.autorun = False if arg == 0 else True
+        self.autorun = arg != 0
         self.debug = DEBUG
         self.elements = {}
         self.counters = []
@@ -157,13 +161,13 @@ class IdaXml:
         summary += ("\n%-26s %8d" % ("Total XML Elements:",total))
         idc.msg(summary)
         if self.autorun == False: # and self.plugin:
-            frmt  = "TITLE XML " + what + " Successful!\n"
+            frmt = f"TITLE XML {what}" + " Successful!\n"
             frmt += "ICON INFO\n"
             frmt += "AUTOHIDE NONE\n"
             frmt += "HIDECANCEL\n"
             fileline = '\n\nFile: %s' % self.filename
             details = '\nSee output window for details...'
-            ida_kernwin.info("%s" % (frmt + fileline + details))
+            ida_kernwin.info(f"{frmt + fileline + details}")
 
 
     def display_version(self, what):
@@ -185,12 +189,12 @@ class IdaXml:
             msg = "Error opening file " + os.path.join(ida_diskio.idadir('python'), 'idaxml.py') + " !\n"
             idc.msg(msg)
             raise FileError
-            
+
         ftime = time.localtime(os.path.getmtime(f))
         ts = time.strftime('%b %d %Y %H:%M:%S', ftime)
         version = "\nXML " + what + " v" + IDAXML_VERSION
-        version += " : SDK " + str(IDA_SDK_VERSION)
-        version += " : Python : "+ ts + '\n'
+        version += f" : SDK {str(IDA_SDK_VERSION)}"
+        version += f" : Python : {ts}" + '\n'
         idc.msg(version)
         
     
@@ -210,14 +214,12 @@ class IdaXml:
             if open fails.
         """
         try:
-            f = open(filename, mode)
-            return f
+            return open(filename, mode)
         except:
-            fmt = "TITLE ERROR!\n"
-            fmt += "ICON ERROR\n"
+            fmt = "TITLE ERROR!\n" + "ICON ERROR\n"
             fmt += "AUTOHIDE NONE\n"
             fmt += "HIDECANCEL\n"
-            fmt += "Error opening file" + filename + "!\n"
+            fmt += f"Error opening file{filename}" + "!\n"
             idc.warning(fmt)
             raise FileError
 
@@ -244,7 +246,7 @@ class IdaXml:
         Args:
             tag: String representing XML element tag
         """
-        status = 'Processing ' + tag
+        status = f'Processing {tag}'
         idc.msg('\n%-35s' % status)
         ida_kernwin.hide_wait_box()
         ida_kernwin.show_wait_box(status)
@@ -284,29 +286,29 @@ class XmlExporter(IdaXml):
         """
         self.display_version('Exporter')
         self.check_and_load_decompiler()
-        
+
         self.get_options()
-    
+
         if (self.autorun == True):
             (self.filename, ext) = os.path.splitext(idc.get_idb_path())
             self.filename += ".xml"
         else:
             self.filename=ida_kernwin.ask_file(1, "*.xml",
                                          "Enter name of export xml file:")
-            
-        if self.filename == None or len(self.filename) == 0:
+
+        if self.filename is None or len(self.filename) == 0:
             raise Cancelled
         self.xmlfile = self.open_file(self.filename, "w")
-        
+
         ida_kernwin.show_wait_box("Exporting XML <PROGRAM> document ....")
         idc.msg("\n------------------------------------------------" +
                    "-----------")
         idc.msg("\nExporting XML <PROGRAM> document ....")
         begin = time.clock()
-        
+
         self.write_xml_declaration()
         self.export_program()
-        
+
         # export database items based on options
         if (self.options.DataTypes.checked         == True or
             self.options.DataDefinitions.checked   == True or 
@@ -316,30 +318,30 @@ class XmlExporter(IdaXml):
             self.options.MemoryContent.checked     == True):
             self.export_memory_map()
         if (self.options.RegisterValues.checked    == True):
-            self.export_register_values()   
+            self.export_register_values()
         if (self.options.CodeBlocks.checked        == True):
-            self.export_code()  
+            self.export_code()
         if (self.options.DataDefinitions.checked   == True):
-            self.export_data()  
+            self.export_data()
         if (self.options.Comments.checked          == True):
             self.export_comments()
-            self.export_bookmarks()     
+            self.export_bookmarks()
         if (self.options.EntryPoints.checked       == True):
-            self.export_program_entry_points()  
+            self.export_program_entry_points()
         if (self.options.Symbols.checked           == True):
-            self.export_symbol_table()  
+            self.export_symbol_table()
         if (self.options.Functions.checked         == True):
-            self.export_functions() 
+            self.export_functions()
         if (self.options.MemoryReferences.checked  == True or 
             self.options.StackReferences.checked   == True or
             self.options.Manual.checked            == True or
             self.options.DataTypes.checked         == True):
-            self.export_markup()    
+            self.export_markup()
         self.end_element(PROGRAM)
-        
+
         idc.msg('\n%35s' % 'Total ')
         self.display_cpu_time(begin)
-        ida_kernwin.hide_wait_box()  
+        ida_kernwin.hide_wait_box()
         self.display_summary('Export')
         idc.msg('\nDatabase exported to: ' + self.filename + '\n')
         
@@ -373,7 +375,7 @@ class XmlExporter(IdaXml):
                 plugin = "hexarm64"
             elif self.inf.is_32bit():
                 plugin = "hexarm"
-        if len(plugin) > 0:
+        if plugin != "":
             try:
                 ida_loader.load_plugin(plugin)
                 self.hexrays = ida_hexrays.init_hexrays_plugin()
@@ -394,8 +396,7 @@ class XmlExporter(IdaXml):
         """
         if isinstance(ch, int):
             ch = chr(ch)
-        if ((ord(ch) < 0x20) and (ord(ch) != 0x09 and
-             ord(ch) != 0x0A and ord(ch) != 0x0D)): return ''
+        if ord(ch) < 0x20 and ord(ch) not in [0x09, 0x0A, 0x0D]: return ''
         elif ch == '&' :  return '&amp;'
         elif ch == '<' :  return "&lt;"
         elif ch == '>' :  return "&gt;"
@@ -417,10 +418,7 @@ class XmlExporter(IdaXml):
             String containing original string with substitutions for
                 any special XML characters.
         """
-        new = ''
-        for c in text:
-            new += self.check_char(c)
-        return new
+        return ''.join(self.check_char(c) for c in text)
     
 
     def check_if_seg_contents(self, seg):
@@ -434,10 +432,10 @@ class XmlExporter(IdaXml):
             True if any address in a segment contains a value.
             False if no address in a segment contains a value.
         """
-        for addr in idautils.Heads(seg.start_ea, seg.end_ea):
-            if idc.has_value(idc.get_full_flags(addr)) == True:
-                return True
-        return False
+        return any(
+            idc.has_value(idc.get_full_flags(addr)) == True
+            for addr in idautils.Heads(seg.start_ea, seg.end_ea)
+        )
 
 
     def check_stack_frame(self, sframe):
@@ -454,11 +452,11 @@ class XmlExporter(IdaXml):
         n = sframe.memqty
         for i in range(n):
             member = sframe.get_member(i)
-            if member == None:
+            if member is None:
                 continue
             mname = ida_struct.get_member_name(member.id)
             if mname != None and len(mname) > 0: 
-                if mname != " s" and mname != " r":
+                if mname not in [" s", " r"]:
                     return True
         return False
 
@@ -506,11 +504,8 @@ class XmlExporter(IdaXml):
             newline: Boolean indicating if end tag should go on new line.
         """
         self.indent_level -= 1
-        if newline:
-            start = '\n' + ("    " * self.indent_level)
-        else:
-            start = ''
-        self.write_to_xmlfile(start  + "</" + tag + ">")
+        start = '\n' + ("    " * self.indent_level) if newline else ''
+        self.write_to_xmlfile(f"{start}</{tag}>")
 
 
     '''
@@ -553,7 +548,7 @@ class XmlExporter(IdaXml):
             description = idc.get_bookmark_desc(slot)
             if address == BADADDR:
                 continue
-            if description == None:
+            if description is None:
                 continue
             if found == False:
                 found = True
@@ -576,14 +571,14 @@ class XmlExporter(IdaXml):
         if self.hexrays == False:
             return
         functions = idautils.Functions()
-        if functions == None:
+        if functions is None:
             return
         for addr in functions:
             try:
                 if ida_segment.is_spec_ea(addr):
                     continue
                 ccmts = ida_hexrays.restore_user_cmts(addr)
-                if ccmts == None:
+                if ccmts is None:
                     continue
                 p = ida_hexrays.user_cmts_begin(ccmts)
                 while p != ida_hexrays.user_cmts_end(ccmts):
@@ -667,7 +662,7 @@ class XmlExporter(IdaXml):
         self.close_tag(True)
         # tag_remove seems to be losing last character
         # work around is to add a space
-        cmt_text = ida_lines.tag_remove(cmt + ' ')
+        cmt_text = ida_lines.tag_remove(f'{cmt} ')
         if sys.version_info.major >= 3:
             self.write_text(cmt_text)
         else:
@@ -750,15 +745,16 @@ class XmlExporter(IdaXml):
             # TODO: How to handle print_type for data mangled names?
             #outbuf = idaapi.print_type(addr, False)
             if demangled == "'string'":
-                demangled == None
-            has_typeinfo = ((demangled != None and len(demangled) > 0) or
-                            (outbuf != None and len(outbuf) > 0))
+                demangled is None
+            has_typeinfo = (
+                demangled != None and len(demangled) > 0
+            ) or outbuf not in [None, ""]
             #TODO export_data: add DISPLAY_SETTINGS
             self.close_tag(has_typeinfo)
-            if has_typeinfo == True:
+            if has_typeinfo:
                 if demangled != None and len(demangled) > 0:
                     self.export_typeinfo_cmt(demangled)
-                elif len(outbuf) > 0:
+                elif outbuf != "":
                     self.export_typeinfo_cmt(outbuf)
                 self.end_element(DEFINED_DATA)
             addr = ida_bytes.next_that(addr, self.max_ea, idc.is_data)
@@ -793,7 +789,7 @@ class XmlExporter(IdaXml):
             signness: Boolean indicating if signed value 
         """
         cname = ida_enum.get_enum_member_name(cid)
-        if cname == None or len(cname) == 0:
+        if cname is None or len(cname) == 0:
             return
         regcmt = ida_enum.get_enum_member_cmt(cid, False)
         rptcmt = ida_enum.get_enum_member_cmt(cid, True)
@@ -825,11 +821,9 @@ class XmlExporter(IdaXml):
             bf: Boolean indicates if a bitfield
             eflags: Integer representing the enum flags
         """
-        mask=0xFFFFFFFF
-        if bf == True:
-            mask = idc.get_first_bmask(eid)
+        mask = idc.get_first_bmask(eid) if bf == True else 0xFFFFFFFF
         first = True
-        for n in range(idc.get_enum_size(eid)):
+        for _ in range(idc.get_enum_size(eid)):
             if (first == True):
                 value = ida_enum.get_first_enum_member(eid, mask)
                 first = False
@@ -912,7 +906,7 @@ class XmlExporter(IdaXml):
             self.start_element(ENUM)
             eid = idc.getn_enum(i)
             ename = idc.get_enum_name(eid)
-            if (ename == None or len(ename) == 0):
+            if ename is None or len(ename) == 0:
                 continue
             self.write_attribute(NAME, ename)
             ewidth = idc.get_enum_width(eid)
@@ -960,11 +954,11 @@ class XmlExporter(IdaXml):
         nextline = idc.get_extra_cmt(addr, extra)
         while (nextline != None):
             # workaround for tag_remove bug is to add space
-            cmt += ida_lines.tag_remove(nextline + ' ')
+            cmt += ida_lines.tag_remove(f'{nextline} ')
             extra += 1
             nextline = idc.get_extra_cmt(addr, extra)
             if (nextline != None):
-                cmt += '\n' 
+                cmt += '\n'
         self.export_comment(addr, cmt_type, cmt)
 
 
@@ -973,7 +967,7 @@ class XmlExporter(IdaXml):
         Exports information about all functions. 
         """
         functions = idautils.Functions()
-        if functions == None:
+        if functions is None:
             return
         self.update_status(FUNCTIONS)
         timer = time.clock()
@@ -1011,11 +1005,10 @@ class XmlExporter(IdaXml):
             outbuf = ''
             # TODO: How to handle print_type for function typeinfo cmts
             #outbuf = idaapi.print_type(addr, False)
-            has_typeinfo = (demangled != None or (outbuf != None and
-                            len(outbuf) > 0))
+            has_typeinfo = demangled != None or outbuf not in [None, ""]
             if demangled != None:
                 self.export_typeinfo_cmt(demangled)
-            elif has_typeinfo == True:
+            elif has_typeinfo:
                 self.export_typeinfo_cmt(outbuf[:-1])
             self.export_stack_frame(function)
             self.end_element(FUNCTION)
@@ -1031,7 +1024,7 @@ class XmlExporter(IdaXml):
             addr: Integer representing instruction address.
         """
         text = idc.get_manual_insn(addr)
-        if text == None or len(text) == 0:
+        if text is None or len(text) == 0:
             return
         self.start_element(MANUAL_INSTRUCTION)
         self.write_address_attribute(ADDRESS, addr)
@@ -1129,7 +1122,7 @@ class XmlExporter(IdaXml):
                 #msize = idaapi.get_data_type_size(m.flag, mtibuf)
                 # TODO: How to handle get_date_type_size for structure members
                 msize = size
-                if size < msize: size = msize
+                size = max(size, msize)
             if (size != msize):
                 arraytype = self.get_member_type(m)
                 dtype = "%s[%d]" % (arraytype, size//msize)
@@ -1165,7 +1158,7 @@ class XmlExporter(IdaXml):
         """
         length = 0
         startaddr = start
-        for addr in range(start, end):
+        for addr in range(startaddr, end):
             # reset start address when length == 0
             if (length == 0):
                 startaddr = addr
@@ -1226,17 +1219,16 @@ class XmlExporter(IdaXml):
         """
         f = idc.get_full_flags(addr)
         ri = ida_nalt.refinfo_t()
-        if ida_nalt.get_refinfo(ri, addr, op) == 1: 
-            if ri.target != BADADDR:
-                target = ri.target
-            elif idc.is_code(f) == True:
-                insn = ida_ua.insn_t()
-                ida_ua.decode_insn(insn, addr)
-                target = (insn.ops[op].value - ri.tdelta + ri.base) & ((1 << 64) - 1)
-            elif idc.is_data(f) == True:
-                target = (self.get_data_value(addr) - ri.tdelta + ri.base) & ((1 << 64) - 1)
-            else:
-                return
+        if ida_nalt.get_refinfo(ri, addr, op) != 1:
+            return
+        if ri.target != BADADDR:
+            target = ri.target
+        elif idc.is_code(f) == True:
+            insn = ida_ua.insn_t()
+            ida_ua.decode_insn(insn, addr)
+            target = (insn.ops[op].value - ri.tdelta + ri.base) & ((1 << 64) - 1)
+        elif idc.is_data(f) == True:
+            target = (self.get_data_value(addr) - ri.tdelta + ri.base) & ((1 << 64) - 1)
         else:
             return
         if ida_bytes.is_mapped(target) == False:
@@ -1278,20 +1270,20 @@ class XmlExporter(IdaXml):
         self.write_address_attribute(START_ADDR, seg.start_ea)
         length = (seg.end_ea - seg.start_ea)*self.cbsize
         self.write_numeric_attribute(LENGTH, length)
-        perms = ""
         if (seg.perm != 0):
+            perms = ""
             if (seg.perm & ida_segment.SEGPERM_READ  != 0):
                 perms += 'r'
             if (seg.perm & ida_segment.SEGPERM_WRITE != 0):
-                perms += 'w' 
+                perms += 'w'
             if (seg.perm & ida_segment.SEGPERM_EXEC  != 0):
                 perms += 'x'
-            if (len(perms) > 0):
+            if perms != "":
                 self.write_attribute(PERMISSIONS, perms)
         has_contents = (self.options.MemoryContent.checked == True and
                        self.check_if_seg_contents(seg) == True)
         self.close_tag(has_contents)
-        if (has_contents == True):
+        if has_contents:
             self.export_memory_contents(os.path.basename(binfilename),
                                       self.binfile, seg.start_ea, seg.end_ea)
             self.end_element(MEMORY_SECTION)
@@ -1320,11 +1312,11 @@ class XmlExporter(IdaXml):
         if input_md5 != None:
             self.write_attribute(INPUT_MD5,input_md5)
         self.close_tag(True)
-    
+
         # output the INFO_SOURCE element
         self.start_element(INFO_SOURCE)
-        tool  = 'IDA-Pro ' + ida_kernwin.get_kernel_version()
-        tool += ' XML plugin v' + IDAXML_VERSION + ' (Python) SDK ' + str(IDA_SDK_VERSION)
+        tool = f'IDA-Pro {ida_kernwin.get_kernel_version()}'
+        tool += f' XML plugin v{IDAXML_VERSION} (Python) SDK {str(IDA_SDK_VERSION)}'
         self.write_attribute(TOOL, tool)
         user = os.getenv("USERNAME", "UNKNOWN")
         if (user == "UNKNOWN"):
@@ -1334,14 +1326,11 @@ class XmlExporter(IdaXml):
         ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         self.write_attribute(TIMESTAMP, ts)
         self.close_tag()
-    
+
         # output the PROCESSOR element
         self.start_element(PROCESSOR)
         self.write_attribute(NAME, self.inf.procname)
-        if self.inf.is_be() == True:
-            byte_order ="big"
-        else:
-            byte_order ="little"
+        byte_order = "big" if self.inf.is_be() == True else "little"
         self.write_attribute(ENDIAN, byte_order)
         self.seg_addr = False
         bitness = 1
@@ -1369,7 +1358,7 @@ class XmlExporter(IdaXml):
             self.seg_addr = True
         # find any overlayed memory before processing addressable items
         self.find_overlay_memory()
-    
+
         # output compiler info
         self.start_element(COMPILER)
         self.write_attribute(NAME, ida_typeinf.get_compiler_name(self.inf.cc.id))
@@ -1426,7 +1415,7 @@ class XmlExporter(IdaXml):
                 if value == idc.BADSEL:
                     continue
                 regname = ida_idp.ph.regnames[j]
-                if regname == None:
+                if regname is None:
                     continue
                 if regname.lower() == "cs":
                     continue
@@ -1473,7 +1462,7 @@ class XmlExporter(IdaXml):
             function: IDA function instance
         """
         sframe = ida_struct.get_struc(function.frame)
-        if sframe == None or sframe.memqty <= 0:
+        if sframe is None or sframe.memqty <= 0:
             return
         self.start_element(STACK_FRAME)
         self.write_numeric_attribute(LOCAL_VAR_SIZE, function.frsize)
@@ -1507,7 +1496,7 @@ class XmlExporter(IdaXml):
                     continue
                 # TODO:How to handle op_t_get_addr for stack references
                 SV = ida_frame.get_stkvar(insn, opnd, opnd.value)
-                if SV == None:
+                if SV is None:
                     continue
                 (sv, actval) = SV
                 function = ida_funcs.get_func(addr)
@@ -1538,12 +1527,12 @@ class XmlExporter(IdaXml):
         """
         for i in range(sframe.memqty):
             member = sframe.get_member(i)
-            if member == None:
+            if member is None:
                 continue
             mname = ida_struct.get_member_name(member.id)
-            if mname == None or len(mname) < 0:
+            if mname is None or len(mname) < 0:
                 continue
-            if mname == " s" or mname == " r":
+            if mname in [" s", " r"]:
                 continue
             spoff = member.soff - function.frsize - function.frregs
             froff = member.soff - function.frsize
@@ -1551,8 +1540,8 @@ class XmlExporter(IdaXml):
             self.write_numeric_attribute(STACK_PTR_OFFSET, spoff, 16, True)
             if function.flags & idc.FUNC_FRAME != 0:
                 self.write_numeric_attribute(FRAME_PTR_OFFSET, froff, 16, True)
-            pre = mname[0:4]
-            if pre != "var_" and pre != "arg_":
+            pre = mname[:4]
+            if pre not in ["var_", "arg_"]:
                 self.write_attribute(NAME, mname)
             f = member.flag
             size = ida_struct.get_member_size(member)
@@ -1565,7 +1554,7 @@ class XmlExporter(IdaXml):
                 mti = ida_struct.retrieve_member_info(mtibuf, member)
                 # TODO: How to handle get_data_type_size (for stack vars)
                 #msize = idaapi.get_data_type_size(f, mtibuf)
-            if size < msize: size = msize
+            size = max(size, msize)
             if (idc.is_strlit(f) == False and ida_bytes.is_align(f) == False
                 and size != msize):
                 mtype = "%s[%d]" % (mtype, size//msize)
@@ -1574,17 +1563,17 @@ class XmlExporter(IdaXml):
             regcmt = ida_struct.get_member_cmt(member.id, False)
             rptcmt = ida_struct.get_member_cmt(member.id, True)
             if regcmt != None:
-                regcmt  = ida_lines.tag_remove(regcmt + " ")
+                regcmt = ida_lines.tag_remove(f"{regcmt} ")
             if rptcmt != None:
-                rptrcmt = ida_lines.tag_remove(rptcmt + " ")
+                rptrcmt = ida_lines.tag_remove(f"{rptcmt} ")
             has_regcmt = regcmt != None and len(regcmt) > 0
             has_rptcmt = rptcmt != None and len(rptcmt) > 0
             has_content = has_regcmt or has_rptcmt
             self.close_tag(has_content)
-            if has_content == True:
-                if has_regcmt == True:
+            if has_content:
+                if has_regcmt:
                     self.export_regular_cmt(regcmt)
-                if has_rptcmt == True:
+                if has_rptcmt:
                     self.export_repeatable_cmt(rptcmt)
                 self.end_element(STACK_VAR)
 
@@ -1758,17 +1747,16 @@ class XmlExporter(IdaXml):
         if space != None:
             temp = "%s:%04X" % (space,
                             addr - ida_segment.get_segm_base(ida_segment.getseg(addr)))
-        else:
-            if (ida_idp.ph_get_id() == ida_idp.PLFM_386 and
+        elif (ida_idp.ph_get_id() == ida_idp.PLFM_386 and
                 ida_segment.getseg(addr).bitness == 0):
-                base = ida_segment.get_segm_para(ida_segment.getseg(addr))
-                temp = "%04X:%04X" % (base, addr - (base << 4))
+            base = ida_segment.get_segm_para(ida_segment.getseg(addr))
+            temp = "%04X:%04X" % (base, addr - (base << 4))
         if ida_idp.ph_get_id() == ida_idp.PLFM_C166:
             temp = "0x%X" % addr
         if self.has_overlays == True and self.is_overlay(addr) == True:
             oname = ida_segment.get_segm_name(ida_segment.getseg(addr))
             if len(oname) > 0:
-                temp = oname + "::" + temp
+                temp = f"{oname}::{temp}"
         return temp
 
 
@@ -1783,8 +1771,7 @@ class XmlExporter(IdaXml):
         if size == 1:   return ida_bytes.get_byte(addr)
         if size == 2:   return ida_bytes.get_16bit(addr)
         if size == 4:   return ida_bytes.get_32bit(addr)
-        if size == 8:   return ida_bytes.get_64bit(addr)
-        return 0
+        return ida_bytes.get_64bit(addr) if size == 8 else 0
     
 
     def get_datatype(self, addr):
@@ -1811,11 +1798,8 @@ class XmlExporter(IdaXml):
             if str_type == ida_nalt.STRTYPE_LEN2:      return "string2"
             if str_type == ida_nalt.STRTYPE_LEN4:      return "string4"
             if str_type == ida_nalt.STRTYPE_C_16:   return "unicode"
-            if str_type == ida_nalt.STRTYPE_C_16:     return "unicode2"
-            if str_type == ida_nalt.STRTYPE_C_32:     return "unicode4"
-            return "string"
-        if ida_bytes.is_off0(f) == True: return "pointer"
-        return t
+            return "unicode4" if str_type == ida_nalt.STRTYPE_C_32 else "string"
+        return "pointer" if ida_bytes.is_off0(f) == True else t
 
 
     def get_format(self, flags):
@@ -1832,8 +1816,7 @@ class XmlExporter(IdaXml):
         radix = ida_bytes.get_radix(flags, 0)
         if radix == 2:  return "binary"
         if radix == 8:  return "octal"
-        if radix == 10: return "decimal"
-        return "hex" # default
+        return "decimal" if radix == 10 else "hex"
     
 
     def get_member_type(self, m):
@@ -1853,12 +1836,10 @@ class XmlExporter(IdaXml):
         if ida_bytes.is_struct(f) == False:
             return t
         s = ida_struct.get_sptr(m)
-        if (s == None):
+        if s is None:
             return t
         sname = idc.get_struc_name(s.id)
-        if (sname == None):
-            return t
-        return sname
+        return t if sname is None else sname
 
 
     def get_options(self):

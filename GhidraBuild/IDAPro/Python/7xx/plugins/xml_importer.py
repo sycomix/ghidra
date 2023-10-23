@@ -70,22 +70,20 @@ class XmlImporterPlugin(ida_idaapi.plugin_t):
         st = idc.set_ida_state(idc.IDA_STATUS_WORK)
         xml = idaxml.XmlImporter(idaxml.PLUGIN, arg)
         try:
-            try:
-                xml.import_xml()
-            except idaxml.Cancelled:
-                msg = "XML Import cancelled!"
-                print("\n" + msg)
-                idc.warning(msg)
-            except idaxml.MultipleAddressSpacesNotSupported:
-                msg  = "XML Import cancelled!"
-                msg += "\n\nXML Import does not currently support"
-                msg += "\nimporting multiple address spaces."
-                print("\n" + msg)
-                idc.warning(msg)
-            except:
-                msg = "***** Exception occurred: XML Importer failed! *****"
-                print("\n" + msg + "\n", sys.exc_type, sys.exc_value)
-                idc.warning(msg)
+            xml.import_xml()
+        except idaxml.Cancelled:
+            msg = "XML Import cancelled!"
+            print("\n" + msg)
+            idc.warning(msg)
+        except idaxml.MultipleAddressSpacesNotSupported:
+            msg = "XML Import cancelled!" + "\n\nXML Import does not currently support"
+            msg += "\nimporting multiple address spaces."
+            print("\n" + msg)
+            idc.warning(msg)
+        except:
+            msg = "***** Exception occurred: XML Importer failed! *****"
+            print("\n" + msg + "\n", sys.exc_type, sys.exc_value)
+            idc.warning(msg)
         finally:
             xml.cleanup()
             idc.set_ida_state(st)

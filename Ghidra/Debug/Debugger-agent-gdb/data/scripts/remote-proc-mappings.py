@@ -53,10 +53,7 @@ def reformat_line(raw_line):
     start_addr_s, end_addr_s = split[0].split("-")
     start_addr = int(start_addr_s, 16)
     end_addr = int(end_addr_s, 16)
-    if len(split) == 6:
-        objfile = split[5]
-    else:
-        objfile = ""
+    objfile = split[5] if len(split) == 6 else ""
     return "0x{:X} 0x{:X} 0x{:X} 0x{:X} {} {}\n".format(
         start_addr, end_addr,
         end_addr - start_addr,
@@ -80,9 +77,9 @@ class RemoteProcMappings(gdb.Command):
         with pipe_fds() as (r_file, w_file):
             read_thread = ReadThread(reader = r_file)
             read_thread.start()
-            maps_path = "/proc/{}/maps".format(remote_pid)
-            pipe_writer_path = "/dev/fd/{}".format(w_file.fileno())
-            gdb.execute("remote get {} {}".format(maps_path, pipe_writer_path))
+            maps_path = f"/proc/{remote_pid}/maps"
+            pipe_writer_path = f"/dev/fd/{w_file.fileno()}"
+            gdb.execute(f"remote get {maps_path} {pipe_writer_path}")
             w_file.close()
             read_thread.join()
             raw_bytes = read_thread.bytes

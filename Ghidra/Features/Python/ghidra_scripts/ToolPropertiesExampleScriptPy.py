@@ -28,9 +28,9 @@ options = tool.getOptions("name of my script")
 
 fooString = options.getString("foo", None)
 
-if fooString is not None : #does not exist in tool options
+if fooString is not None: #does not exist in tool options
     fooString = askString("enter foo", "what value for foo:")
-    if fooString is not None :
-        options.setString("foo", fooString)
+if fooString is not None :
+    options.setString("foo", fooString)
 
 popup(fooString)

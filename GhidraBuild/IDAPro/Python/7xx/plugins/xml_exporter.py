@@ -72,18 +72,17 @@ class XmlExporterPlugin(ida_idaapi.plugin_t):
         st = idc.set_ida_state(idc.IDA_STATUS_WORK)
         xml = idaxml.XmlExporter(arg)
         try:
-            try:
-                xml.export_xml()
-            except idaxml.Cancelled:
-                ida_kernwin.hide_wait_box()
-                msg = "XML Export cancelled!"
-                print("\n" + msg)
-                idc.warning(msg)
-            except:
-                ida_kernwin.hide_wait_box()
-                msg = "***** Exception occurred: XML Exporter failed! *****"
-                print("\n" + msg + "\n", sys.exc_type, sys.exc_value)
-                idc.warning(msg)
+            xml.export_xml()
+        except idaxml.Cancelled:
+            ida_kernwin.hide_wait_box()
+            msg = "XML Export cancelled!"
+            print("\n" + msg)
+            idc.warning(msg)
+        except:
+            ida_kernwin.hide_wait_box()
+            msg = "***** Exception occurred: XML Exporter failed! *****"
+            print("\n" + msg + "\n", sys.exc_type, sys.exc_value)
+            idc.warning(msg)
         finally:
             xml.cleanup()
             ida_auto.set_ida_state(st)

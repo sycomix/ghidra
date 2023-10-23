@@ -56,8 +56,7 @@ def accept_file(li, n):
     data = li.read(0x4000)
     # look for start of <PROGRAM> element
     start = data.find("<PROGRAM")
-    if start >= 0: return "XML PROGRAM file"
-    return 0
+    return "XML PROGRAM file" if start >= 0 else 0
 
 
 def load_file(li, neflags, format):
@@ -303,9 +302,8 @@ class XmlImporter:
         """
         Displays the options menu and retrieves the option settings. 
         """
-        fmt =  "HELP\n"
-        fmt += "XML PROGRAM loader/importer plugin (Python)\n"
-        fmt += "IDA SDK: "+ str(IDA_SDK_VERSION) + "\n\n"
+        fmt = "HELP\n" + "XML PROGRAM loader/importer plugin (Python)\n"
+        fmt += f"IDA SDK: {str(IDA_SDK_VERSION)}" + "\n\n"
         fmt +=  "The XML PROGRAM loader loads elements from a "
         fmt +=  "XML <PROGRAM> document to create an idb database.\n\n"
         fmt +=  "ENDHELP\n"
@@ -323,7 +321,7 @@ class XmlImporter:
         fmt += "\n <Equate/Enum References:{EquateReferences}>"
         fmt += "\n <Manual Instructions/Operands:{Manual}>{cGroup1}>"
         fmt += "\n\n"
-    
+
         Opts = { 'cGroup1': idaapi.Form.ChkGroupControl(
                 ( 
                 "CodeBlocks", "EntryPoints", "RegisterValues",
@@ -331,10 +329,10 @@ class XmlImporter:
                 "Symbols", "Comments", "Bookmarks",
                 "Functions", "MemoryReferences", "EquateReferences",
                 "Manual")) }
-        
+
         self.Options = idaapi.Form(fmt, Opts)
         self.Options.Compile()
-    
+
         self.Options.CodeBlocks.checked       = True
         self.Options.EntryPoints.checked      = True
         self.Options.RegisterValues.checked   = True
@@ -347,7 +345,7 @@ class XmlImporter:
         self.Options.MemoryReferences.checked = True
         self.Options.EquateReferences.checked = True
         self.Options.Manual.checked           = True
-        
+
         if display == True:
             ok = self.Options.Execute()
             if (ok == 0):
@@ -404,14 +402,13 @@ class XmlImporter:
         summary = header + summary
         idaapi.msg(summary)
         if self.plugin and self.autorun == False:
-            frmt  = "TITLE XML Import Successful!\n"
-            frmt += "ICON INFO\n"
+            frmt = "TITLE XML Import Successful!\n" + "ICON INFO\n"
             frmt += "AUTOHIDE NONE\n"
             frmt += "HIDECANCEL\n"
             firstline = "\n XML IMPORT SUCCESSFUL!"
             fileline = '\n\nFile: %s' % self.filename
             details = '\n\nSee output window for details...'
-            idaapi.info("%s" % (frmt + firstline + fileline + details))
+            idaapi.info(f"{frmt + firstline + fileline + details}")
     
 
     def display_xml_importer_version(self):
@@ -419,14 +416,14 @@ class XmlImporter:
         Displays XML Importer plugin version info in IDA output window.
         """
         if self.plugin:
-            f = idaapi.idadir(idaapi.PLG_SUBDIR) + '/xmlldr.py'
+            f = f'{idaapi.idadir(idaapi.PLG_SUBDIR)}/xmlldr.py'
         else:
-            f = idaapi.idadir(idaapi.LDR_SUBDIR) + '/xmlldr.py'
+            f = f'{idaapi.idadir(idaapi.LDR_SUBDIR)}/xmlldr.py'
         plugintime = time.localtime(os.path.getmtime(f))
         ts = time.strftime('%b %d %Y %H:%M:%S', plugintime)
         version = "\nXML Importer Version " + XML_IMPORTER_VERSION
-        version += " : SDK " + str(IDA_SDK_VERSION)
-        version += " : Python : "+ ts + '\n'
+        version += f" : SDK {str(IDA_SDK_VERSION)}"
+        version += f" : Python : {ts}" + '\n'
         idaapi.msg(version)
     
 
@@ -450,11 +447,10 @@ class XmlImporter:
             offset = int(offset_str,16)
             if self.is_int(segstr) == True:
                 sgmt = int(segstr,16)
-                addr = (sgmt << 4) + offset
+                return (sgmt << 4) + offset
             else:
                 # multiple address spaces not currently implemented
-                addr = BADADDR
-            return addr
+                return BADADDR
         else:
             return int(element.get(attr), 16)
     
@@ -527,9 +523,7 @@ class XmlImporter:
         if datatype.lower().startswith("packed"):   return idaapi.packrealflag()
         if self.is_string_type(datatype):           return idaapi.asciflag()
         if self.is_enumeration(datatype):           return idaapi.enumflag()
-        if self.is_structure(datatype):             return idaapi.struflag()
-        #if size == 4:                               return idaapi.dwrdflag()
-        return 0
+        return idaapi.struflag() if self.is_structure(datatype) else 0
     
 
     def get_string_type(self, datatype):
@@ -569,8 +563,7 @@ class XmlImporter:
             True if the datatype is an enumeration in the database,
             otherwise False.
         """
-        if idaapi.get_enum(datatype) == idaapi.BADNODE:  return False
-        return True
+        return idaapi.get_enum(datatype) != idaapi.BADNODE
     
     
     def is_int(self, s):
@@ -591,9 +584,7 @@ class XmlImporter:
         Returns:
             True if the datatype represents a pointer, otherwise False.
         """
-        if dtype.lower().startswith("pointer") or dtype.endswith('*'):
-            return True
-        return False
+        return bool(dtype.lower().startswith("pointer") or dtype.endswith('*'))
     
 
     def is_string_type(self, datatype):
@@ -607,8 +598,7 @@ class XmlImporter:
             True if the datatype represents a string, otherwise False.
         """
         if datatype.lower().startswith("unicode"):  return True
-        if datatype.lower().startswith("string"):   return True
-        return False
+        return bool(datatype.lower().startswith("string"))
     
 
     def is_structure(self, datatype):
@@ -622,8 +612,7 @@ class XmlImporter:
             True if the datatype represents an existing structure,
             otherwise False.
         """
-        if idaapi.get_struc_id(datatype) == idaapi.BADNODE:  return False
-        return True
+        return idaapi.get_struc_id(datatype) != idaapi.BADNODE
     
 
     def import_address_range(self, address_range):
@@ -661,11 +650,11 @@ class XmlImporter:
         regcmt = bitmask.find(REGULAR_CMT)
         if regcmt != None:
             idaapi.set_const_cmt(cid, regcmt.text, False);
-            self.update_counter(BIT_MASK + ':' + REGULAR_CMT)
+            self.update_counter(f'{BIT_MASK}:{REGULAR_CMT}')
         rptcmt = bitmask.find(REPEATABLE_CMT)
         if rptcmt != None:
             idaapi.set_const_cmt(cid, rptcmt.txt, True);
-            self.update_counter(BIT_MASK + ':' + REPEATABLE_CMT)
+            self.update_counter(f'{BIT_MASK}:{REPEATABLE_CMT}')
     
 
     def import_bookmark(self, bookmark):
@@ -726,11 +715,11 @@ class XmlImporter:
         regcmt = element.find(REGULAR_CMT)
         if regcmt != None:
             idaapi.set_struc_cmt(sid, regcmt.text, False)
-            self.update_counter(typ + ':' + REGULAR_CMT)
+            self.update_counter(f'{typ}:{REGULAR_CMT}')
         rptcmt = element.find(REPEATABLE_CMT)
         if rptcmt != None:
             idaapi.set_struc_cmt(sid, rptcmt.text, True)
-            self.update_counter(typ + ':' + REPEATABLE_CMT)
+            self.update_counter(f'{typ}:{REPEATABLE_CMT}')
             
         
     def import_codeblock(self, code_block):
@@ -774,7 +763,7 @@ class XmlImporter:
             idaapi.set_cmt(addr, text, True)
         elif ctype == 'post':
             idaapi.add_long_cmt(addr, False, text)
-        self.update_counter(COMMENT+':' + ctype)
+        self.update_counter(f'{COMMENT}:{ctype}')
     
 
     def import_compiler(self, compiler):
@@ -810,7 +799,7 @@ class XmlImporter:
         addr = self.get_address(defined_data, ADDRESS)
         datatype = self.get_attribute(defined_data, DATATYPE)
         size = self.get_attribute_value(defined_data, SIZE)
-        self.update_counter(DEFINED_DATA)        
+        self.update_counter(DEFINED_DATA)
         ti = idaapi.opinfo_t()
         if self.is_pointer_type(datatype):
             #idaapi.set_refinfo(ti, 0, 0, 0, REF_OFF32)
@@ -824,10 +813,10 @@ class XmlImporter:
         elif flag == idaapi.struflag():
             idaapi.doStruct(addr, size, idaapi.get_struc_id(datatype))
         else:
-            idaapi.do_data_ex(addr, flag, size, idaapi.BADNODE)        
+            idaapi.do_data_ex(addr, flag, size, idaapi.BADNODE)
         typecmt = defined_data.find(TYPEINFO_CMT)
         if typecmt != None:
-            self.update_counter(DEFINED_DATA + ':' + TYPEINFO_CMT)
+            self.update_counter(f'{DEFINED_DATA}:{TYPEINFO_CMT}')
 
 
     def import_enum(self, enum):
@@ -851,14 +840,14 @@ class XmlImporter:
         regcmt = enum.find(REGULAR_CMT)
         if regcmt != None:
             idaapi.set_enum_cmt(eid, regcmt.text, False)
-            self.update_counter(ENUM + ':' + REGULAR_CMT)
+            self.update_counter(f'{ENUM}:{REGULAR_CMT}')
         rptcmt = enum.find(REPEATABLE_CMT)
         if rptcmt != None:
             idaapi.set_enum_cmt(eid, rptcmt.text, True)
-            self.update_counter(ENUM + ':' + REPEATABLE_CMT)
+            self.update_counter(f'{ENUM}:{REPEATABLE_CMT}')
         display_settings = enum.find(DISPLAY_SETTINGS)
         if display_settings != None:
-            self.update_counter(ENUM + ':' + DISPLAY_SETTINGS)
+            self.update_counter(f'{ENUM}:{DISPLAY_SETTINGS}')
         enum_entries = enum.findall(ENUM_ENTRY)
         for enum_entry in enum_entries:
             self.import_enum_entry(enum_entry, eid)
@@ -889,14 +878,14 @@ class XmlImporter:
                 idaapi.set_const_cmt(cid, regcmt.text, False);
             else:
                 idaapi.set_enum_member_cmt(cid, regcmt.text, False);
-            self.update_counter(ENUM_ENTRY + ':' + REGULAR_CMT)
+            self.update_counter(f'{ENUM_ENTRY}:{REGULAR_CMT}')
         rptcmt = enum_entry.find(REPEATABLE_CMT)
         if rptcmt != None:
             if IDA_SDK_VERSION > 630:
                 idaapi.set_const_cmt(cid, rptcmt.text, True);
             else:
                 idaapi.set_enum_member_cmt(cid, rptcmt.text, True);
-            self.update_counter(ENUM_ENTRY + ':' + REPEATABLE_CMT)
+            self.update_counter(f'{ENUM_ENTRY}:{REPEATABLE_CMT}')
     
 
     def import_equate(self, equate, eid):
@@ -921,20 +910,20 @@ class XmlImporter:
             idaapi.add_enum_member(eid, name, value)
             cid = idaapi.get_enum_member_by_name(name)
         self.update_counter(EQUATE)
-        regcmt = equate.find(REGULAR_CMT) 
+        regcmt = equate.find(REGULAR_CMT)
         if regcmt != None:
             if IDA_SDK_VERSION > 630:
                 idaapi.set_const_cmt(cid, regcmt.text, False);
             else:
                 idaapi.set_enum_member_cmt(cid, regcmt.text, False);
-            self.update_counter(EQUATE + ':' + REGULAR_CMT)
+            self.update_counter(f'{EQUATE}:{REGULAR_CMT}')
         rptcmt = equate.find(REPEATABLE_CMT)
         if rptcmt != None:
             if IDA_SDK_VERSION > 630:
                 idaapi.set_const_cmt(cid, rptcmt.text, True);
             else:
                 idaapi.set_enum_member_cmt(cid, rptcmt.text, True);
-            self.update_counter(EQUATE + ':' + REPEATABLE_CMT)
+            self.update_counter(f'{EQUATE}:{REPEATABLE_CMT}')
     
 
     def import_equate_group(self, equate_group):
@@ -960,11 +949,11 @@ class XmlImporter:
         regcmt = equate_group.find(REGULAR_CMT)
         if regcmt != None:
             idaapi.set_enum_cmt(eid, regcmt.text, False)
-            self.update_counter(EQUATE_GROUP + ':' + REGULAR_CMT)
+            self.update_counter(f'{EQUATE_GROUP}:{REGULAR_CMT}')
         rptcmt = equate_group.find(REPEATABLE_CMT)
         if rptcmt != None:
             idaapi.set_enum_cmt(eid, rptcmt.text, True)
-            self.update_counter(EQUATE_GROUP + ':' + REPEATABLE_CMT)
+            self.update_counter(f'{EQUATE_GROUP}:{REPEATABLE_CMT}')
         equates = equate_group.findall(EQUATE)
         for equate in equates:
             self.import_equate(equate,eid)
@@ -1189,11 +1178,11 @@ class XmlImporter:
         regcmt = member.find(REGULAR_CMT)
         if regcmt != None:
             idaapi.set_member_cmt(mbr, regcmt.text, False)
-            self.update_counter(MEMBER + ':' + REGULAR_CMT)
+            self.update_counter(f'{MEMBER}:{REGULAR_CMT}')
         rptcmt = member.find(REPEATABLE_CMT)
         if rptcmt != None:
             idaapi.set_member_cmt(mbr, rptcmt.text, True)
-            self.update_counter(MEMBER + ':' + REPEATABLE_CMT)
+            self.update_counter(f'{MEMBER}:{REPEATABLE_CMT}')
         
 
     def import_members(self, element, sptr):
@@ -1216,20 +1205,20 @@ class XmlImporter:
         Args:
             memory_contents: MEMORY_CONTENTS XML element.
         """
-        if memory_contents.get(START_ADDR) == None:
+        if memory_contents.get(START_ADDR) is None:
             saddr = start
         else:
             saddr = self.get_address(memory_contents, START_ADDR)
         fname = self.get_attribute(memory_contents, FILE_NAME)
         offset = self.get_attribute_value(memory_contents, FILE_OFFSET)
-        if memory_contents.get(LENGTH) == None:
+        if memory_contents.get(LENGTH) is None:
             length = size
         else:
             length = self.get_attribute_value(memory_contents, LENGTH)
         #(binfilename, ext) = os.path.splitext(self.filename)
         #binfilename += ".bytes"
         (binfilename, fileext) = os.path.split(self.filename)
-        binfilename += '/' + fname
+        binfilename += f'/{fname}'
         binfile = idaapi.loader_input_t()
         binfile.open(binfilename)
         binfile.file2base(offset,saddr,saddr+length,False)
@@ -1535,13 +1524,13 @@ class XmlImporter:
             if self.has_attribute(structure, NAMESPACE) == False:
                 return
             namespace = self.get_attribute(structure, NAMESPACE)
-            name = namespace + '__' + name
+            name = f'{namespace}__{name}'
             name.replace('/','_')
             name.replace('.','_')
             dtyp = idaapi.get_struc_id(name)
-            # skip if still duplicate (could add sequence #)
-            if dtyp != idaapi.BADNODE:
-                return
+        # skip if still duplicate (could add sequence #)
+        if dtyp != idaapi.BADNODE:
+            return
         size = 0
         if self.has_attribute(structure, SIZE):
             size = self.get_attribute_value(structure, SIZE)
@@ -1605,13 +1594,13 @@ class XmlImporter:
             if self.has_attribute(union, NAMESPACE) == False:
                 return
             namespace = self.get_attribute(union, NAMESPACE)
-            name = namespace + '__' + name
+            name = f'{namespace}__{name}'
             name.replace('/','_')
             name.replace('.','_')
             dtyp = idaapi.get_struc_id(name)
-            # skip if still duplicate (could add sequence #)
-            if dtyp != idaapi.BADNODE:
-                return
+        # skip if still duplicate (could add sequence #)
+        if dtyp != idaapi.BADNODE:
+            return
         size = 0
         if self.has_attribute(union, SIZE):
             size = self.get_attribute_value(union, SIZE)
@@ -1641,14 +1630,12 @@ class XmlImporter:
             if open fails.
         """
         try:
-            f = open(filename, mode)
-            return f
+            return open(filename, mode)
         except:
-            fmt = "TITLE ERROR!\n"
-            fmt += "ICON ERROR\n"
+            fmt = "TITLE ERROR!\n" + "ICON ERROR\n"
             fmt += "AUTOHIDE NONE\n"
             fmt += "HIDECANCEL\n"
-            fmt += "Error opening file" + filename + "!\n"
+            fmt += f"Error opening file{filename}" + "!\n"
             idaapi.warning(fmt)
             raise FileError
     
@@ -1690,7 +1677,7 @@ class XmlImporter:
         Args:
             tag: String representing XML element tag
         """
-        status = 'Importing ' + tag
+        status = f'Importing {tag}'
         idaapi.msg('\n%-35s' % status)
         idaapi.hide_wait_box()
         idaapi.show_wait_box(status)

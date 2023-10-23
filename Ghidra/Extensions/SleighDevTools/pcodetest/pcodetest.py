@@ -54,14 +54,14 @@ class PCodeTest(BuildUtil):
     @classmethod
     def print_all(cls):
         for t,pcodetest in sorted(cls.list.items(), key=lambda x: x[0].lower()):
-            print(str(pcodetest))
+            print(pcodetest)
             if pcodetest.config.verbose: print(pcodetest.config.dump())
 
     def __str__(self):
         cb = 'build-all:%-5s' % ('yes' if self.config.build_all else 'no')
         ce = 'can-export:%-5s' % ('yes' if self.config.can_export else 'no')
         ct = 'compiler-type:%-5s' % self.config.toolchain_type
-        tc = 'Toolchain:%s' % self.config.toolchain
+        tc = f'Toolchain:{self.config.toolchain}'
         return self.config.name.ljust(20) + cb + ce + ct + tc
 
 class PCodeTestBuild(BuildUtil):
@@ -82,7 +82,7 @@ class PCodeTestBuild(BuildUtil):
             raise Exception(pcode_test.config.format('Toolchain type %(toolchain_type)s not known'))
 
     def which(self, what):
-        return self.config.format('%(toolchain_dir)s/%(' + what + ')s')
+        return self.config.format(f'%(toolchain_dir)s/%({what})s')
 
     def compile(self, input_files, opt_cflag, output_base):
         self.log_err(self.config.format('compile not implemented for %(toolchain_type)s'))
@@ -97,41 +97,42 @@ class PCodeTestBuild(BuildUtil):
             return
 
         # save path to tpp
-        tpp_py = os.getcwd() + '/tpp.py'
+        tpp_py = f'{os.getcwd()}/tpp.py'
 
         # Get a list of strings to filter input files
         available_files = sorted(glob.glob(self.config.format('%(pcodetest_src)s/*')))
         if self.config.proc_test:
             available_files.extend(sorted(glob.glob(self.config.format('%(pcodetest_src)s/%(proc_test)s/*'))))
-        
+
         available_files = [x for x in available_files if not os.path.isdir(x) ]
         # skip any?
         skip_files = self.config.skip_files
         if len(skip_files) > 0:
             toskip = [x for x in available_files if self.basename(x) in skip_files]
             if len(toskip) != len(skip_files):
-                self.log_warn('These files will not be skipped because they are not in the build: %s'
-                              % ' '.join([x for x in skip_files if not x in toskip]))
-            available_files = [x for x in available_files if not x in toskip]
+                self.log_warn(
+                    f"These files will not be skipped because they are not in the build: {' '.join([x for x in skip_files if x not in toskip])}"
+                )
+            available_files = [x for x in available_files if x not in toskip]
 
         # remove float/double/longlong files if not supported
         if not self.config.has_float: available_files = [x for x in available_files if not fnmatch.fnmatch(x, '*FLOAT*')]
         if not self.config.has_double: available_files = [x for x in available_files if not fnmatch.fnmatch(x, '*DOUBLE*')]
         if not self.config.has_longlong: available_files = [x for x in available_files if not fnmatch.fnmatch(x, '*LONGLONG*')]
-            
+
+        kind = 'PCodeTest'
+
         # compile for each optimization
         for opt_name,opt_cflag in sorted(self.config.variants.items()):
-
-            kind = 'PCodeTest'
 
             # This is the base name of the binary file, or for small
             # build, the directory name that will hold the small
             # binaries
 
-            out_name = '%s_%s_%s_pcodetest' % (self.config.name, self.config.toolchain_type.upper(), opt_name)
+            out_name = f'{self.config.name}_{self.config.toolchain_type.upper()}_{opt_name}_pcodetest'
             if self.config.architecture_test: pcodetest_base_name = self.config.architecture_test
             else: pcodetest_base_name = self.config.architecture
-            pcodetest_test = '%s_%s_EmulatorTest' % (pcodetest_base_name, opt_name)
+            pcodetest_test = f'{pcodetest_base_name}_{opt_name}_EmulatorTest'
 
             # GNUMake like rule to prevent un-required builds of pcodetests files
             # This does not rebuild if the output directory is newer than the
@@ -148,7 +149,9 @@ class PCodeTestBuild(BuildUtil):
                         break
 
             if not need_to_build:
-                self.log_info('%s up to date (call with --force to force build)' % self.log_prefix(kind, out_name))
+                self.log_info(
+                    f'{self.log_prefix(kind, out_name)} up to date (call with --force to force build)'
+                )
                 continue
 
             self.open_log(self.config.build_root, kind, out_name, chdir=True)
@@ -185,7 +188,7 @@ class PCodeTestBuild(BuildUtil):
 
                 # Remove the previous directory, if it was there
 
-                build_dir = '%s/build-PCodeTest-%s/%s' % (self.config.build_root, out_name, out_name)
+                build_dir = f'{self.config.build_root}/build-PCodeTest-{out_name}/{out_name}'
                 try: self.rmtree(build_dir)
                 except: pass
 
@@ -194,19 +197,19 @@ class PCodeTestBuild(BuildUtil):
 
                 for body_file in smallFiles:
                     small_name = body_file.replace('_BODY.c', '')
-                    companion_file = small_name + '.c'
+                    companion_file = f'{small_name}.c'
                     if not self.isfile(companion_file) or not self.isfile(body_file):
-                        self.log_info('Skipping %s %s build' % (companion_file, body_file))
+                        self.log_info(f'Skipping {companion_file} {body_file} build')
                         continue
                     input_files = ['pcode_test.c', 'pcode_main.c', 'builtin.c', companion_file, body_file]
                     self.compile(input_files, opt_cflag, small_name)
-                    self.export_file(small_name+'.out', build_dir)
-                    
+                    self.export_file(f'{small_name}.out', build_dir)
+
                 # export the directory
-                target_dir = self.config.export_root+'%s'%out_name
-                self.log_info("Exporting %s directory to %s" % (build_dir, target_dir) )
+                target_dir = f'{self.config.export_root}{out_name}'
+                self.log_info(f"Exporting {build_dir} directory to {target_dir}")
                 self.export_file(build_dir, target_dir)
-                
+
             else:
                 # compile all the c and h files here
                 input_files = sorted(glob.glob('*.[c]'))
@@ -214,10 +217,10 @@ class PCodeTestBuild(BuildUtil):
 
                 # export the file
                 target_dir = self.config.export_root
-                self.log_info("Exporting file to %s" % target_dir)
-                output_file = '%s.out' % (out_name)
+                self.log_info(f"Exporting file to {target_dir}")
+                output_file = f'{out_name}.out'
                 self.export_file(output_file, target_dir)
-                
+
             self.chdir(self.config.cwd)
             self.log_close()
 
@@ -238,7 +241,7 @@ class PCodeBuildSDCC(PCodeTestBuild):
         if self.config.has_decimal32: f += ['-DHAS_DECIMAL32=1']
         if self.config.has_decimal64: f += ['-DHAS_DECIMAL64=1']
 
-        f += ['-DNAME=NAME:%s' % output_file]
+        f += [f'-DNAME=NAME:{output_file}']
 
         f += self.config.ccflags.split()
         f += self.config.add_ccflags.split()
@@ -249,7 +252,7 @@ class PCodeBuildSDCC(PCodeTestBuild):
 
         # Name the output file, and delete it if it exists
 
-        output_file = '%s.out' % (output_base)
+        output_file = f'{output_base}.out'
         self.remove(output_file)
 
         # Construct the compile command line and execute it
@@ -267,7 +270,7 @@ class PCodeBuildSDCC(PCodeTestBuild):
         # return now if the error preempted the binary
 
         if not self.is_readable_file(output_file):
-            self.log_err('output not created %s' % output_file)
+            self.log_err(f'output not created {output_file}')
             return
 
 class PCodeBuildCCS(PCodeTestBuild):
@@ -287,7 +290,7 @@ class PCodeBuildCCS(PCodeTestBuild):
         if self.config.has_decimal32: f += ['-DHAS_DECIMAL32=1']
         if self.config.has_decimal64: f += ['-DHAS_DECIMAL64=1']
 
-        f += ['-DNAME=NAME:%s' % output_file]
+        f += [f'-DNAME=NAME:{output_file}']
 
         f += self.config.ccflags.split()
         f += self.config.add_ccflags.split()
@@ -298,7 +301,7 @@ class PCodeBuildCCS(PCodeTestBuild):
 
         # Name the output file, and delete it if it exists
 
-        output_file = '%s.out' % (output_base)
+        output_file = f'{output_base}.out'
         self.remove(output_file)
 
         # Construct the compile command line and execute it
@@ -317,7 +320,7 @@ class PCodeBuildCCS(PCodeTestBuild):
         # return now if the error preempted the binary
 
         if not self.is_readable_file(output_file):
-            self.log_err('output not created %s' % output_file)
+            self.log_err(f'output not created {output_file}')
             return
 
 class PCodeBuildGCC(PCodeTestBuild):
@@ -329,7 +332,7 @@ class PCodeBuildGCC(PCodeTestBuild):
     # add a new option to library path, or reset to saved value
     def set_library_path(self, add):
         if add and self.saved_ld_library_path:
-            self.environment('LD_LIBRARY_PATH', '%s:%s' % (self.config.ld_library_path, add))
+            self.environment('LD_LIBRARY_PATH', f'{self.config.ld_library_path}:{add}')
         elif add:
             self.environment('LD_LIBRARY_PATH', add)
         elif self.saved_ld_library_path:
@@ -343,37 +346,45 @@ class PCodeBuildGCC(PCodeTestBuild):
         if err:
             self.log_err(err)
 
-        out, err = self.run([self.which('objdump_exe')]
-                            + self.config.objdump_option.split()
-                            + ['-d', bin], stdout=('%s.d' % base))
+        out, err = self.run(
+            [self.which('objdump_exe')]
+            + self.config.objdump_option.split()
+            + ['-d', bin],
+            stdout=f'{base}.d',
+        )
         if err: self.log_warn(err)
 
-        out, err = self.run([self.which('objdump_exe')]
-                            + self.config.objdump_option.split()
-                            + ['-s', '--section', '.comment', bin],
-                            stdout=('%s.comment' % base))
+        out, err = self.run(
+            [self.which('objdump_exe')]
+            + self.config.objdump_option.split()
+            + ['-s', '--section', '.comment', bin],
+            stdout=f'{base}.comment',
+        )
         if err: self.log_warn(err)
 
-        out, err = self.run([self.which('objdump_exe')]
-                            + self.config.objdump_option.split()
-                            + ['-x', '-s', '-j', '.data', '-j', '.rodata', '-t' , bin],
-                            stdout=('%s.mem' % base))
+        out, err = self.run(
+            [self.which('objdump_exe')]
+            + self.config.objdump_option.split()
+            + ['-x', '-s', '-j', '.data', '-j', '.rodata', '-t', bin],
+            stdout=f'{base}.mem',
+        )
         if err: self.log_warn(err)
 
-        out, err = self.run([self.which('readelf_exe'),
-                             '--debug-dump=decodedline', bin], 
-                            stdout=('%s.li' % base))
+        out, err = self.run(
+            [self.which('readelf_exe'), '--debug-dump=decodedline', bin],
+            stdout=f'{base}.li',
+        )
         if err: self.log_warn(err)
 
-        out, err = self.run([self.which('nm_exe'), '-a', bin], 
-                        stdout=('%s.nm' % base))
+        out, err = self.run([self.which('nm_exe'), '-a', bin], stdout=f'{base}.nm')
         if err: self.log_warn(err)
 
-        out, err = self.run([self.which('readelf_exe'), '-a', bin],
-                            stdout=('%s.readelf' % base))
+        out, err = self.run(
+            [self.which('readelf_exe'), '-a', bin], stdout=f'{base}.readelf'
+        )
         if err: self.log_warn(err)
 
-        out, err = self.run(['grep', ' U ', '%s.nm' % base])
+        out, err = self.run(['grep', ' U ', f'{base}.nm'])
         if out: self.log_warn('** UNRESOLVED:\n' + out + '**END')
         if err: self.log_warn(err)
 
@@ -389,7 +400,7 @@ class PCodeBuildGCC(PCodeTestBuild):
         if self.config.has_decimal32: f += ['-DHAS_DECIMAL32=1']
         if self.config.has_decimal64: f += ['-DHAS_DECIMAL64=1']
 
-        f += ['-DNAME=NAME:%s' % output_file]
+        f += [f'-DNAME=NAME:{output_file}']
         # turn off -g because dwarf, not needed
         f += ['-dA', '-w']
         # for xc26: f += ['--no-data-init']
@@ -409,7 +420,7 @@ class PCodeBuildGCC(PCodeTestBuild):
 
         # Name the output file, and delete it if it exists
 
-        output_file = '%s.out' % (output_base)
+        output_file = f'{output_base}.out'
         self.remove(output_file)
 
         # set the library path
@@ -429,7 +440,7 @@ class PCodeBuildGCC(PCodeTestBuild):
         # but return now if the error preempted the binary
 
         if not self.is_readable_file(output_file):
-            self.log_err('output not created %s' % output_file)
+            self.log_err(f'output not created {output_file}')
             return
 
         # strip
@@ -449,11 +460,26 @@ class PCodeBuildGCC(PCodeTestBuild):
 
         if self.config.build_exe:
             cmp = self.which('compile_exe')
-            cmd = [cmp] + input_files + self.cflags(output_file)\
-                + ['-DBUILD_EXE', opt_cflag, '-B', self.dirname(cmp), '-o', '%s.exe' % output_base]
+            cmd = (
+                [cmp]
+                + input_files
+                + self.cflags(output_file)
+                + [
+                    '-DBUILD_EXE',
+                    opt_cflag,
+                    '-B',
+                    self.dirname(cmp),
+                    '-o',
+                    f'{output_base}.exe',
+                ]
+            )
             out, err = self.run(cmd)
             if err: self.log_warn(err)
             if out: self.log_info(out)
             if self.config.qemu_command:
                 build_dir = self.build_dir(self.config.build_root, "pcodetest", output_base)
-                self.log_info(self.config.format('%s %s/%s.exe' %(self.config.qemu_command, build_dir, output_base)))
+                self.log_info(
+                    self.config.format(
+                        f'{self.config.qemu_command} {build_dir}/{output_base}.exe'
+                    )
+                )

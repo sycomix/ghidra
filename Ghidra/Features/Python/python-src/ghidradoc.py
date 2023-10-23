@@ -31,9 +31,7 @@ class _Helper:
     def __init__(self):
         self.orig_help = __builtin__.help
         if SystemUtilities.isInHeadlessMode():
-            # ./pythonRun scenario
-            self.msg = "\nExample workflow:\n"
-            self.msg += "  # Import headless analyzer\n"
+            self.msg = "\nExample workflow:\n" + "  # Import headless analyzer\n"
             self.msg += "  from ghidra.app.util.headless import HeadlessAnalyzer\n\n"
             self.msg += "  # View HeadlessAnalyzer API\n"
             self.msg += "  help(HeadlessAnalyzer)\n\n"

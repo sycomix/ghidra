@@ -44,18 +44,18 @@ for line in file(f.absolutePath):  # note, cannot use open(), since that is in G
     except IndexError:
         function_or_label = "l"
 
-    
+
     if function_or_label == "f":
         func = functionManager.getFunctionAt(address)
 
         if func is not None:
             old_name = func.getName()
             func.setName(name, USER_DEFINED)
-            print("Renamed function {} to {} at address {}".format(old_name, name, address))
+            print(f"Renamed function {old_name} to {name} at address {address}")
         else:
             func = createFunction(address, name)
-            print("Created function {} at address {}".format(name, address))
+            print(f"Created function {name} at address {address}")
 
     else:
-        print("Created label {} at address {}".format(name, address))
+        print(f"Created label {name} at address {address}")
         createLabel(address, name, False)

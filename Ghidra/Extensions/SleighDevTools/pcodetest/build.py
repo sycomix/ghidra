@@ -32,25 +32,25 @@ class BuildUtil:
     def run(self, cmd, stdout=False, stderr=False, verbose=True):
         if isinstance(cmd, str):
             if stdout and stderr:
-                cmd += ' 1>%s 2>%s' % (stdout, stderr)
-            elif stdout and not stderr:
-                cmd += ' 1>%s 2>&1' % (stdout)
-            elif not stdout and stderr:
-                cmd += ' 2>%s' % (stderr)
+                cmd += f' 1>{stdout} 2>{stderr}'
+            elif stdout:
+                cmd += f' 1>{stdout} 2>&1'
+            elif stderr:
+                cmd += f' 2>{stderr}'
             if verbose: self.log_info(cmd)
             os.system(cmd)
         else:
             string = ' '.join(cmd)
             if stdout:
                 f = open(stdout, 'w+')
-                string += ' 1>%s 2>&1' % (stdout)
+                string += f' 1>{stdout} 2>&1'
             else:
                 f = subprocess.PIPE
             if verbose: self.log_info(string)
             try:
                 sp = subprocess.Popen(cmd, stdout=f, stderr=subprocess.PIPE)
             except OSError as e:
-                self.log_err("Command: " + string)
+                self.log_err(f"Command: {string}")
                 self.log_err(e.strerror)
                 return 0, e.strerror
             if stdout: f.close()
@@ -90,20 +90,20 @@ class BuildUtil:
 
     def is_readable_file(self, fname):
         if not self.isfile(fname):
-            self.log_warn('%s does not exist' % fname)
+            self.log_warn(f'{fname} does not exist')
             return False
         if os.stat(fname).st_size == 0:
-            self.log_warn('%s is empty' % fname)
+            self.log_warn(f'{fname} is empty')
             return False
         if os.access(fname, os.R_OK) == 0:
-            self.log_warn('%s is not readable' % fname)
+            self.log_warn(f'{fname} is not readable')
             return False
         return True
 
     def is_executable_file(self, fname):
         if not self.is_readable_file(fname): return False
         if os.access(fname, os.X_OK) == 0:
-            self.log_warn('%s is not executable' % fname)
+            self.log_warn(f'{fname} is not executable')
             return False
         return True
 
@@ -114,65 +114,74 @@ class BuildUtil:
                 self.makedirs(dname)
             self.copy(fname, dname, verbose=True)
         except IOError as e:
-            self.log_err('Error occurred exporting %s to %s' % (fname, dname))
-            self.log_err("Unexpected error: %s" % str(e))
+            self.log_err(f'Error occurred exporting {fname} to {dname}')
+            self.log_err(f"Unexpected error: {str(e)}")
 
     def rmtree(self, directory, verbose=True):
-        if verbose: self.log_info('rm -r %s' % directory)
+        if verbose:
+            self.log_info(f'rm -r {directory}')
         shutil.rmtree(directory)
 
     def makedirs(self, directory, verbose=True):
-        if verbose: self.log_info('mkdir -p %s' % directory)
+        if verbose:
+            self.log_info(f'mkdir -p {directory}')
         try: os.makedirs(directory)
         except: pass
 
     # copy a file/directory to a directory
     def copy(self, fname, dname, verbose=True):
         if not os.path.isdir(fname):
-            if verbose: self.log_info('cp -av %s %s' % (fname, dname))
+            if verbose:
+                self.log_info(f'cp -av {fname} {dname}')
             shutil.copy(fname, dname)
         else:
-            if verbose: self.log_info('cp -avr %s %s' % (fname, dname))
+            if verbose:
+                self.log_info(f'cp -avr {fname} {dname}')
             if os.path.exists(dname):
                 shutil.rmtree(dname)
             shutil.copytree(fname, dname)
 
     def chdir(self, directory, verbose=True):
-        if verbose: self.log_info('cd %s' % directory)
+        if verbose:
+            self.log_info(f'cd {directory}')
         os.chdir(directory)
 
     def remove(self, fname, verbose=True):
-        if verbose: self.log_info('rm -f %s' % fname)
+        if verbose:
+            self.log_info(f'rm -f {fname}')
         try: os.remove(fname)
         except: pass
 
     def environment(self, var, val, verbose=True):
-        if verbose: self.log_info('%s=%s' % (var, val))
+        if verbose:
+            self.log_info(f'{var}={val}')
         os.environ[var] = val
 
     def unlink(self, targ, verbose=True):
-        if verbose: self.log_info('unlink %s' % targ)
+        if verbose:
+            self.log_info(f'unlink {targ}')
         os.unlink(targ)
 
     def symlink(self, src, targ, verbose=True):
-        if verbose: self.log_info('ln -s %s %s' % (src, targ))
+        if verbose:
+            self.log_info(f'ln -s {src} {targ}')
         if os.path.islink(targ):
             os.unlink(targ)
         os.symlink(src, targ)
 
     def build_dir(self, root, kind, what):
-        return root + "/" + re.sub(r'[^a-zA-Z0-9_-]+', '_', 'build-%s-%s' % (kind, what))
+        return f"{root}/" + re.sub(r'[^a-zA-Z0-9_-]+', '_', f'build-{kind}-{what}')
 
     def log_prefix(self, kind, what):
-        return kind.upper() + ' ' + what
+        return f'{kind.upper()} {what}'
 
     def open_log(self, root, kind, what, chdir=False):
         build_dir = self.build_dir(root, kind, what)
 
         # Get the name of the log file
-        logFile = '%s/log.txt' % build_dir
+        logFile = f'{build_dir}/log.txt'
 
-        self.log_info('%s LOGFILE %s' % (self.log_prefix(kind, what), logFile))
+        self.log_info(f'{self.log_prefix(kind, what)} LOGFILE {logFile}')
 
         try: self.rmtree(build_dir, verbose=False)
         except: pass
@@ -188,9 +197,9 @@ class BuildUtil:
     def log_close(self):
         if self.log:
             if self.num_errors > 0:
-                print('# ERROR: There were errors, see %s' % self.name)
+                print(f'# ERROR: There were errors, see {self.name}')
             elif self.num_warnings > 0:
-                print('# WARNING: There were warnings, see %s' % self.name)
+                print(f'# WARNING: There were warnings, see {self.name}')
             self.log.close()
         self.log = False
         self.name = False
@@ -198,11 +207,7 @@ class BuildUtil:
         self.num_warnings = 0
 
     def log_pr(self, prefix, what):
-        if isinstance(what, str):
-            log_string = prefix + what
-        else:
-            log_string = prefix + repr(what)
-
+        log_string = prefix + what if isinstance(what, str) else prefix + repr(what)
         if self.log:
             self.log.write(log_string + '\n')
             self.log.flush()
@@ -246,36 +251,33 @@ class BuildUtil:
 
         typedefs = { 'i1':1, 'i2':2, 'i4':4, 'u1':1, 'u2':2, 'u4':4, 'i8':8, 'u8':8, 'f4':4, 'f8':8 }
 
-        f = open(fname, 'w')
+        with open(fname, 'w') as f:
+            f.write('#include "types.h"\n\n')
 
-        f.write('#include "types.h"\n\n')
+            i = 0
+            for s in sizes:
+                i += 1
+                d = f'INFO sizeof({s}) = '
+                x = list(d)
+                x = "', '".join(x)
+                x = "'%s', '0'+sizeof(%s), '\\n'" % (x, s)
+                l = 'char size_info_%d[] = {%s};\n' % (i, x)
+                if s in ifdefs: f.write('#ifdef %s\n' % ifdefs[s])
+                f.write(l)
+                if s in ifdefs: f.write('#endif\n')
 
-        i = 0
-        for s in sizes:
-            i += 1
-            d = 'INFO sizeof(%s) = ' % s
-            x = list(d)
-            x = "', '".join(x)
-            x = "'%s', '0'+sizeof(%s), '\\n'" % (x, s)
-            l = 'char size_info_%d[] = {%s};\n' % (i, x)
-            if s in ifdefs: f.write('#ifdef %s\n' % ifdefs[s])
-            f.write(l)
-            if s in ifdefs: f.write('#endif\n')
+            for s in typedefs:
+                if s in ifdefs: f.write('#ifdef %s\n' % ifdefs[s])
+                f.write('_Static_assert(sizeof(%s) == %d, "INFO %s should have size %d, is not correct\\n");\n' % (s, typedefs[s], s, typedefs[s]))
+                if s in ifdefs: f.write('#endif\n')
 
-        for s in typedefs:
-            if s in ifdefs: f.write('#ifdef %s\n' % ifdefs[s])
-            f.write('_Static_assert(sizeof(%s) == %d, "INFO %s should have size %d, is not correct\\n");\n' % (s, typedefs[s], s, typedefs[s]))
-            if s in ifdefs: f.write('#endif\n')
-
-        for s in syms:
-            i += 1
-            f.write('#ifdef %s\n' % s)
-            f.write('char sym_info_%d[] = "INFO %s is defined\\n\";\n' % (i, s))
-            f.write('#else\n')
-            f.write('char sym_info_%d[] = "INFO %s is not defined\\n\";\n' % (i, s))
-            f.write('#endif\n')
-
-        f.close()
+            for s in syms:
+                i += 1
+                f.write('#ifdef %s\n' % s)
+                f.write('char sym_info_%d[] = "INFO %s is defined\\n\";\n' % (i, s))
+                f.write('#else\n')
+                f.write('char sym_info_%d[] = "INFO %s is not defined\\n\";\n' % (i, s))
+                f.write('#endif\n')
 
 class Config:
 
@@ -301,8 +303,7 @@ class Config:
     def dump(self):
         ret = ''
         for k,v in sorted(self.__dict__.items()):
-            if isinstance(v, str): vv = "'" + v + "'"
-            else: vv = str(v)
+            vv = f"'{v}'" if isinstance(v, str) else str(v)
             ret += ' '.ljust(10) + k.ljust(20) + vv + '\n'
         return ret
 
